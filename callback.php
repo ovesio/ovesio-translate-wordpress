@@ -67,7 +67,7 @@ function ovesio_wp_post_callback($type, $id, $callback)
     $row = $wpdb->get_row( $query );
 
     if(empty($row->id)) {
-        throw new Exception('Translation not found!');
+        throw new Exception('Ovesio request not found!');
     }
 
     $post_status = ovesio_get_option('ovesio_options', 'post_status', 'publish');
