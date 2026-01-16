@@ -1,0 +1,36 @@
+name: Deploy to WordPress.org
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # OPTIONAL: dacă ai build (ex: npm run build) înainte de deploy
+      # - name: Build
+      #   run: |
+      #     npm ci
+      #     npm run build
+
+      - name: WordPress.org SVN Deploy
+        uses: nk-o/action-wordpress-plugin-deploy@master
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+
+          # IMPORTANT: dacă slug-ul din WP.org e "ovesio", îl setezi explicit
+          SLUG: ovesio
+
+          # OPTIONAL: dacă build-ul tău e în alt folder (ex: dist/)
+          # SOURCE_DIR: dist/
+
+          # OPTIONAL: dacă assets-urile sunt în alt folder decât .wordpress-org
+          # ASSETS_DIR: .wordpress-org
