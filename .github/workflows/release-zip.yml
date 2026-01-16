@@ -24,6 +24,7 @@ jobs:
           mkdir -p "${BUILD_DIR}/${PLUGIN}"
 
           rsync -a ./ "${BUILD_DIR}/${PLUGIN}/" \
+            --exclude '.distignore' \
             --exclude '.git' \
             --exclude '.git/' \
             --exclude '.github' \
