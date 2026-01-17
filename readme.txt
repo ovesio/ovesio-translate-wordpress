@@ -4,7 +4,7 @@ Requires at least: 6.2
 Requires PHP: 7.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
-Stable tag: 1.3.9
+Stable tag: 1.3.10
 Contributors: ovesio, awebro
 Tags: multilingual, translate, translation, language, localization
 
@@ -189,7 +189,7 @@ The authors and contributors are not liable for any claim, damages, or other lia
 whether in an action of contract, tort, or otherwise, arising from, out of, or in connection
 with the module or the use or other dealings in the module.
 
-This is an open-source community module and is not an official module of PrestaShop
+This is an open-source community module and is not an official module of WordPress
 
 This module may rely on third-party services/APIs. Availability and output quality may vary.
 
