@@ -46,12 +46,146 @@ function ovesio_handle_public_endpoint() {
     }
 }
 
+function ovesio_acquire_translation_lock($key, $timeout = 10) {
+    $lock_key = 'ovesio_lock_' . md5((string) $key);
+    $deadline = microtime(true) + max(1, (int) $timeout);
+
+    while (microtime(true) < $deadline) {
+        if (add_option($lock_key, time(), '', false)) {
+            return $lock_key;
+        }
+
+        usleep(200000);
+    }
+
+    return false;
+}
+
+function ovesio_release_translation_lock($lock_key) {
+    if (!empty($lock_key)) {
+        delete_option($lock_key);
+    }
+}
+
+function ovesio_merge_translation_map(array $base, array $extra) {
+    foreach ($extra as $lang => $entity_id) {
+        $lang = sanitize_key((string) $lang);
+        $entity_id = (int) $entity_id;
+
+        if ($lang === '' || $entity_id <= 0) {
+            continue;
+        }
+
+        $base[$lang] = $entity_id;
+    }
+
+    return $base;
+}
+
+function ovesio_collect_post_translations($post_id) {
+    if (!function_exists('pll_get_post_translations')) {
+        return [];
+    }
+
+    $post_id = (int) $post_id;
+    if ($post_id <= 0) {
+        return [];
+    }
+
+    $translations = pll_get_post_translations($post_id);
+    if (!is_array($translations)) {
+        $translations = [];
+    }
+
+    foreach (array_values($translations) as $translated_id) {
+        $translated_id = (int) $translated_id;
+        if ($translated_id <= 0) {
+            continue;
+        }
+
+        $nested = pll_get_post_translations($translated_id);
+        if (is_array($nested)) {
+            $translations = ovesio_merge_translation_map($translations, $nested);
+        }
+    }
+
+    return $translations;
+}
+
+function ovesio_collect_term_translations($term_id) {
+    if (!function_exists('pll_get_term_translations')) {
+        return [];
+    }
+
+    $term_id = (int) $term_id;
+    if ($term_id <= 0) {
+        return [];
+    }
+
+    $translations = pll_get_term_translations($term_id);
+    if (!is_array($translations)) {
+        $translations = [];
+    }
+
+    foreach (array_values($translations) as $translated_id) {
+        $translated_id = (int) $translated_id;
+        if ($translated_id <= 0) {
+            continue;
+        }
+
+        $nested = pll_get_term_translations($translated_id);
+        if (is_array($nested)) {
+            $translations = ovesio_merge_translation_map($translations, $nested);
+        }
+    }
+
+    return $translations;
+}
+
+function ovesio_collect_request_translations($resource, $resource_id, $translate_id) {
+    global $wpdb;
+
+    $resource = sanitize_key((string) $resource);
+    $resource_id = (int) $resource_id;
+    $translate_id = (int) $translate_id;
+    if ($resource === '' || $resource_id <= 0 || $translate_id <= 0) {
+        return [];
+    }
+
+    $table_name = $wpdb->prefix . 'ovesio_list';
+    $query = $wpdb->prepare(
+        "SELECT lang, content_id FROM {$table_name} WHERE resource = %s AND resource_id = %d AND translate_id = %d AND content_id IS NOT NULL",
+        $resource,
+        $resource_id,
+        $translate_id
+    );
+
+    $rows = $wpdb->get_results($query);
+    if (!is_array($rows)) {
+        return [];
+    }
+
+    $translations = [];
+    foreach ($rows as $saved_row) {
+        $lang = isset($saved_row->lang) ? ovesio_normalize_polylang_slug($saved_row->lang) : '';
+        $content_id = isset($saved_row->content_id) ? (int) $saved_row->content_id : 0;
+        if ($lang === '' || $content_id <= 0) {
+            continue;
+        }
+
+        $translations[$lang] = $content_id;
+    }
+
+    return $translations;
+}
+
 function ovesio_wp_post_callback($type, $id, $callback)
 {
     global $wpdb;
 
     $table_name = $wpdb->prefix . 'ovesio_list';
-    $target_lang = $callback->to;
+    $target_lang_ovesio = strtolower(trim((string) $callback->to));
+    $target_lang = ovesio_normalize_polylang_slug($target_lang_ovesio);
 
    /* phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared */
     $query = $wpdb->prepare(
@@ -59,7 +193,7 @@ function ovesio_wp_post_callback($type, $id, $callback)
         "SELECT * FROM {$table_name} WHERE resource = %s AND resource_id = %d AND lang = %s AND translate_id = %d AND content_id IS NULL",
         $type,
         $id,
-        $target_lang,
+        $target_lang_ovesio,
         $callback->id
     );
 
@@ -117,7 +251,7 @@ function ovesio_wp_post_callback($type, $id, $callback)
         if(!empty($tags) && in_array($type, ['post', 'product'])) {
             $tag_type = $type . '_tag';
 
-            $new_tags = [];
+            $new_tag_ids = [];
             foreach($tags as $tag_id => $tag_value) {
                 $term = (array) get_term($tag_id, $tag_type);
                 if (is_wp_error($term) || !$term) {
@@ -143,8 +277,10 @@ function ovesio_wp_post_callback($type, $id, $callback)
                     $term['slug'] = sanitize_title($name);
                 // }
 
+                $target_tag_id = isset($tag_translation[$target_lang]) ? (int) $tag_translation[$target_lang] : 0;
+
                 //Check if it's an update
-                if (!isset($tag_translation[$target_lang])) {
+                if ($target_tag_id <= 0) {
                     $new_term = wp_insert_term($name, $tag_type, $term);
 
                     $new_term_id = (is_array($new_term) && !empty($new_term['term_id'])) ? $new_term['term_id'] : $new_term->term_id;
@@ -156,28 +292,47 @@ function ovesio_wp_post_callback($type, $id, $callback)
                         }
                     }
 
+                    $target_tag_id = (int) $new_term_id;
+
                     // Set language
                     if (function_exists('pll_set_term_language')) {
-                        pll_set_term_language($new_term_id, $target_lang);
+                        pll_set_term_language($target_tag_id, $target_lang);
                     }
 
-                    // Get existing translations
+                    // Keep tag translations in one Polylang group when multiple callbacks run together.
                     if (function_exists('pll_get_term_translations') && function_exists('pll_save_term_translations')) {
-                        if (!isset($tag_translation[$target_lang])) {
-                            // Add the new translation
-                            $tag_translation[$target_lang] = $new_term_id;
-                            // Save the updated translations
-                            pll_save_term_translations($tag_translation);
+                        $lock_key = ovesio_acquire_translation_lock('term:' . $callback->id . ':' . $tag_type . ':' . $tag_id, 12);
+                        try {
+                            $source_lang = function_exists('pll_get_term_language') ? pll_get_term_language($tag_id, 'slug') : '';
+
+                            $fresh_tag_translations = ovesio_collect_term_translations($tag_id);
+                            $fresh_tag_translations = ovesio_merge_translation_map($fresh_tag_translations, ovesio_collect_term_translations($target_tag_id));
+                            $fresh_tag_translations = ovesio_merge_translation_map($fresh_tag_translations, ovesio_collect_request_translations($tag_type, $tag_id, $callback->id));
+
+                            if (!empty($source_lang) && empty($fresh_tag_translations[$source_lang])) {
+                                $fresh_tag_translations[$source_lang] = $tag_id;
+                            }
+                            $fresh_tag_translations[$target_lang] = $target_tag_id;
+                            pll_save_term_translations($fresh_tag_translations);
+                        } finally {
+                            ovesio_release_translation_lock($lock_key);
                         }
                     }
+                }
 
-                    $new_tags[] = $name;
+                if ($target_tag_id > 0) {
+                    $new_tag_ids[] = $target_tag_id;
                 }
             }
 
             //Add tags to post
-            if($new_tags) {
-                wp_set_post_tags($new_post_id, $new_tags, true);
+            if($new_tag_ids) {
+                $new_tag_ids = array_values(array_unique(array_map('intval', $new_tag_ids)));
+                if ($type === 'product') {
+                    wp_set_object_terms($new_post_id, $new_tag_ids, 'product_tag', false);
+                } else {
+                    wp_set_post_terms($new_post_id, $new_tag_ids, 'post_tag', false);
+                }
             }
         }
 
@@ -243,11 +398,22 @@ function ovesio_wp_post_callback($type, $id, $callback)
             // Set the language for the new post
             pll_set_post_language($new_post_id, $target_lang);
 
-            // Add the new translation
-            if (!isset($translations[$target_lang])) {
-                $translations[$target_lang] = $new_post_id;
-                // Save the updated translations
-                pll_save_post_translations($translations);
+            // Serialize translation-group writes to avoid callback race conditions.
+            $lock_key = ovesio_acquire_translation_lock('post:' . $callback->id . ':' . $id, 12);
+            try {
+                $source_lang = function_exists('pll_get_post_language') ? pll_get_post_language($id, 'slug') : '';
+
+                $fresh_translations = ovesio_collect_post_translations($id);
+                $fresh_translations = ovesio_merge_translation_map($fresh_translations, ovesio_collect_post_translations($new_post_id));
+                $fresh_translations = ovesio_merge_translation_map($fresh_translations, ovesio_collect_request_translations($type, $id, $callback->id));
+
+                if (!empty($source_lang) && empty($fresh_translations[$source_lang])) {
+                    $fresh_translations[$source_lang] = $id;
+                }
+                $fresh_translations[$target_lang] = $new_post_id;
+                pll_save_post_translations($fresh_translations);
+            } finally {
+                ovesio_release_translation_lock($lock_key);
             }
 
             // Categories relations
@@ -269,8 +435,14 @@ function ovesio_wp_post_callback($type, $id, $callback)
             }
 
             // Tags relations
-            if (!empty(ovesio_tags_relations($id, $target_lang))) {
-                wp_set_post_tags($new_post_id, ovesio_tags_relations($id, $target_lang));
+            $tags_taxonomy = ($type === 'product') ? 'product_tag' : 'post_tag';
+            $tags_relations = ovesio_tags_relations($id, $target_lang, $tags_taxonomy);
+            if (!empty($tags_relations)) {
+                if ($type === 'product') {
+                    wp_set_object_terms($new_post_id, $tags_relations, 'product_tag', false);
+                } else {
+                    wp_set_post_terms($new_post_id, $tags_relations, 'post_tag', false);
+                }
             }
 
             // Set product Type and variations for WooCommerce products
@@ -336,13 +508,23 @@ function ovesio_wp_post_callback($type, $id, $callback)
             pll_set_term_language($new_term_id, $target_lang);
         }
 
-        // Get existing translations
+        // Keep term translations in a single Polylang group even when callbacks run in parallel.
         if (function_exists('pll_get_term_translations') && function_exists('pll_save_term_translations')) {
-            if (!isset($translations[$target_lang])) {
-                // Add the new translation
-                $translations[$target_lang] = $new_term_id;
-                // Save the updated translations
-                pll_save_term_translations($translations);
+            $lock_key = ovesio_acquire_translation_lock('term:' . $callback->id . ':' . $type . ':' . $id, 12);
+            try {
+                $source_lang = function_exists('pll_get_term_language') ? pll_get_term_language($id, 'slug') : '';
+
+                $fresh_translations = ovesio_collect_term_translations($id);
+                $fresh_translations = ovesio_merge_translation_map($fresh_translations, ovesio_collect_term_translations($new_term_id));
+                $fresh_translations = ovesio_merge_translation_map($fresh_translations, ovesio_collect_request_translations($type, $id, $callback->id));
+
+                if (!empty($source_lang) && empty($fresh_translations[$source_lang])) {
+                    $fresh_translations[$source_lang] = $id;
+                }
+                $fresh_translations[$target_lang] = $new_term_id;
+                pll_save_term_translations($fresh_translations);
+            } finally {
+                ovesio_release_translation_lock($lock_key);
             }
         }
     } else {

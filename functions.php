@@ -16,18 +16,45 @@ if (!function_exists('ovesio_pre')) {
 function ovesio_polylang_code_conversion($code) {
     //Ovesio => Polylang
     $langs_match = [
-        'en' => 'gb',
-        'el' => 'gr',
-        'cs' => 'cz',
-        'da' => 'dk',
+        'gb' => 'en',
+        'gr' => 'el',
+        'cz' => 'cs',
+        'dk' => 'da',
         'pt-br' => 'pt',
     ];
 
-    if(in_array($code, $langs_match)) {
-        return $code;
+    $code = strtolower(trim((string) $code));
+    if (isset($langs_match[$code])) {
+        return $langs_match[$code];
     }
 
     return $code;
+}
+
+function ovesio_normalize_polylang_slug($code) {
+    $code = strtolower(trim((string) $code));
+    if ($code === '') {
+        return $code;
+    }
+
+    $code = str_replace('_', '-', $code);
+    $normalized = ovesio_polylang_code_conversion($code);
+    if (!function_exists('pll_languages_list')) {
+        return $normalized;
+    }
+
+    $available_languages = (array) pll_languages_list(['fields' => 'slug']);
+    if (in_array($normalized, $available_languages, true)) {
+        return $normalized;
+    }
+
+    // Fallback for locales like "fr-FR" or "fr_FR" -> "fr".
+    $parts = explode('-', $normalized);
+    if (!empty($parts[0]) && in_array($parts[0], $available_languages, true)) {
+        return $parts[0];
+    }
+
+    return $normalized;
 }
 
 function ovesio_lang_to_country_code($code)
@@ -100,6 +127,7 @@ function ovesio_sanitize_options($input)
     $translation_default_language = sanitize_text_field($input['translation_default_language']);
     $input['translation_workflow'] = sanitize_text_field($input['translation_workflow']);
     $input['post_status'] = sanitize_text_field($input['post_status']);
+    $input['auto_refresh_pending'] = !empty($input['auto_refresh_pending']) ? 1 : 0;
 
     //Remove default language
     if($translation_default_language == 'system'){
@@ -155,13 +183,22 @@ function ovesio_parent_category_relations($id, $target_lang) {
     }
 }
 
-function ovesio_tags_relations($id, $target_lang) {
-    $catLang = [];
-    foreach (array_column(wp_get_post_tags($id), 'term_id') as $cat) {
-        $catLang[] = pll_get_term_translations($cat);
+function ovesio_tags_relations($id, $target_lang, $taxonomy = 'post_tag') {
+    $translated_terms = [];
+    $term_ids = wp_get_post_terms((int) $id, $taxonomy, ['fields' => 'ids']);
+
+    if (is_wp_error($term_ids) || empty($term_ids)) {
+        return $translated_terms;
     }
 
-    return array_column($catLang, $target_lang);
+    foreach ($term_ids as $term_id) {
+        $translations = pll_get_term_translations((int) $term_id);
+        if (!empty($translations[$target_lang])) {
+            $translated_terms[] = (int) $translations[$target_lang];
+        }
+    }
+
+    return array_values(array_unique($translated_terms));
 }
 
 function ovesio_traverse_elements_with_id(array $elements, callable $callback) {
