@@ -57,6 +57,7 @@ function ovesio_translation_settings_page()
     $translation_workflow = ovesio_get_option('ovesio_options', 'translation_workflow', 0);
     $translation_to = ovesio_get_option('ovesio_options', 'translation_to');
     $post_status = ovesio_get_option('ovesio_options', 'post_status', 'publish');
+    $auto_refresh_pending = (int) ovesio_get_option('ovesio_options', 'auto_refresh_pending', 1);
 ?>
 
     <form method="post" action="options.php" class="ovesio-settings-form">
@@ -131,6 +132,17 @@ function ovesio_translation_settings_page()
                         <option value="draft" <?php selected($post_status, 'draft'); ?>><?php esc_html_e('Draft', 'ovesio'); ?></option>
                     </select>
                     <p class="description"><?php esc_html_e('Status for new translated posts or pages', 'ovesio'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row">
+                    <label for="ovesio_auto_refresh_pending"><?php esc_html_e('Auto refresh pending list', 'ovesio'); ?></label>
+                </th>
+                <td>
+                    <label>
+                        <input type="checkbox" id="ovesio_auto_refresh_pending" name="ovesio_options[auto_refresh_pending]" value="1" <?php checked(1, $auto_refresh_pending); ?>>
+                        <?php esc_html_e('Refresh list pages every 30 seconds when pending translations exist', 'ovesio'); ?>
+                    </label>
                 </td>
             </tr>
         </table>

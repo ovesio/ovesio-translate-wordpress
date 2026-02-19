@@ -1,4 +1,57 @@
 jQuery(document).ready(function ($) {
+  function initPendingAutoRefresh() {
+    const config = window.ovesioAdmin || {};
+    if (!config.autoRefreshPending) {
+      return;
+    }
+
+    if (!$(".ovesio-pending-translations").length) {
+      return;
+    }
+
+    const refreshInterval = parseInt(config.refreshInterval, 10) || 30;
+    let remaining = refreshInterval;
+
+    const noticeId = "ovesio-pending-refresh-notice";
+    const counterClass = "ovesio-pending-refresh-counter";
+    const label = config.countdownLabel || "Refreshing in";
+    const secondsLabel = config.secondsLabel || "seconds";
+
+    const $notice = $(
+      `<div id="${noticeId}" class="notice notice-info inline"><p></p></div>`
+    );
+
+    const $targetWrap = $("#wpbody-content .wrap").first();
+    if ($targetWrap.length) {
+      $targetWrap.prepend($notice);
+    }
+
+    $(".ovesio-pending-translations .ovesio-pending-label").each(function () {
+      const $label = $(this);
+      if (!$label.find(`.${counterClass}`).length) {
+        $label.append(`<small class="${counterClass}"></small>`);
+      }
+    });
+
+    function renderCountdown() {
+      const text = `${label} ${remaining} ${secondsLabel}.`;
+      $notice.find("p").text(text);
+      $(`.${counterClass}`).text(`(${text})`);
+    }
+
+    renderCountdown();
+    const timer = setInterval(function () {
+      remaining -= 1;
+      if (remaining <= 0) {
+        clearInterval(timer);
+        window.location.reload();
+        return;
+      }
+
+      renderCountdown();
+    }, 1000);
+  }
+
   // Initialize ajax request
   $(document).on("click", ".ovesio-translate-ajax-request", function (e) {
     e.preventDefault();
@@ -51,4 +104,6 @@ jQuery(document).ready(function ($) {
     const value = $(this).val();
     $(this).next(".range-value").text(value);
   });
+
+  initPendingAutoRefresh();
 });

@@ -17,7 +17,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('OVESIO_PLUGIN_VERSION', '1.3.10');
+define('OVESIO_PLUGIN_VERSION', '1.3.11');
 define('OVESIO_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('OVESIO_ADMIN_DIR', OVESIO_PLUGIN_DIR . 'admin/');
 
@@ -114,6 +114,16 @@ function ovesio_create_table() {
     ) $charset_collate;";
 
     dbDelta($sql);
+
+    $options = get_option('ovesio_options', []);
+    if (!is_array($options)) {
+        $options = [];
+    }
+
+    if (!array_key_exists('auto_refresh_pending', $options)) {
+        $options['auto_refresh_pending'] = 1;
+        update_option('ovesio_options', $options);
+    }
 }
 
 
@@ -173,6 +183,12 @@ function ovesio_register_settings()
         return;
     }
 
+    $options = get_option('ovesio_options', []);
+    if (is_array($options) && !array_key_exists('auto_refresh_pending', $options)) {
+        $options['auto_refresh_pending'] = 1;
+        update_option('ovesio_options', $options);
+    }
+
     register_setting('ovesio_api', 'ovesio_api_settings', 'ovesio_sanitize_api_options');
     register_setting('ovesio_settings', 'ovesio_options', 'ovesio_sanitize_options');
 }
@@ -189,6 +205,17 @@ add_action('admin_enqueue_scripts', function () {
         ['jquery'],
         OVESIO_PLUGIN_VERSION,
         true
+    );
+
+    wp_localize_script(
+        'ovesio-script',
+        'ovesioAdmin',
+        [
+            'autoRefreshPending' => (bool) ovesio_get_option('ovesio_options', 'auto_refresh_pending', 1),
+            'refreshInterval' => 30,
+            'countdownLabel' => __('Refreshing in', 'ovesio'),
+            'secondsLabel' => __('seconds', 'ovesio'),
+        ]
     );
 
     wp_enqueue_style(
