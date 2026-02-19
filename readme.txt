@@ -1,16 +1,16 @@
-== Ovesio – Automated AI Translation ==
+== Ovesio – Content AI Translation ==
 Tested up to: 6.9
 Requires at least: 6.2
 Requires PHP: 7.2
 License: MIT
 License URI: https://opensource.org/licenses/MIT
-Stable tag: 1.3.11
+Stable tag: 1.3.12
 Contributors: ovesio, awebro
 Tags: multilingual, translate, translation, language, localization
 
 == Description ==
 
-Automatically translate your WordPress into 30+ languages with Ovesio's [AI Translation ](https://ovesio.com/) Engine.
+Automatically translate your WordPress into 30+ languages with Ovesio's [Content AI](https://ovesio.com/) Engine.
 
 ### Scale To International Markets In Hours With Multilingual AI ###
 
@@ -123,6 +123,13 @@ Yes. Products and product categories/tags are supported if WooCommerce is active
 6. Ovesio WP Plugin Example of new buttons on hover
 
 == Changelog ==
+= 1.3.12 =
+- Language normalization fixes for callback -> Polylang mapping.
+- Polylang translation group linking fixes for callbacks.
+- Term/tag mapping fixes (`post_tag`, `product_tag`).
+- Pending translations auto-refresh setting (default enabled).
+- 30s pending counter + auto-refresh in admin list pages.
+
 = 1.3.7 =
 Bug fix: Translation not found
 
@@ -164,6 +171,9 @@ Initial WooCommerce product translation support.
 Initial release – Posts, Pages, Categories, Tags translation with Polylang integration.
 
 == Upgrade Notice ==
+= 1.3.12 =
+Includes callback linking fixes, tag mapping fixes, and pending auto-refresh with countdown.
+
 = 1.3.3=
 Lang flags fix.
 Composer updated.
