@@ -135,8 +135,8 @@ function ovesio_admin_menu()
     }
 
     add_menu_page(
-        __('Ovesio', 'ovesio'),
-        __('Ovesio', 'ovesio'),
+        __('Ovesio - Content AI', 'ovesio'),
+        __('Ovesio - Content AI', 'ovesio'),
         'manage_options',
         'ovesio',
         'ovesio_settings_tabs',

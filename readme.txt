@@ -115,8 +115,8 @@ Yes. Products and product categories/tags are supported if WooCommerce is active
 
 == Screenshots ==
 
-1. Ovesio AI's Dashboard
-2. Ovesio AI's Translations List
+1. Ovesio - Content AI's Dashboard
+2. Ovesio - Content AI's Translations List
 3. Ovesio WP Plugin API Settings
 4. Ovesio WP Plugin Translation Settings
 5. Ovesio WP Plugin Requests List

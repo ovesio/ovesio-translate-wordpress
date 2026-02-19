@@ -1,6 +1,6 @@
 {
     "name": "ovesio/ovesio-translate-wordpress",
-    "description": "WordPress plugin that integrates Ovesio AI Translation and SEO tools.",
+    "description": "WordPress plugin that integrates Ovesio - Content AI Translation and SEO tools.",
     "version": "1.3.10",
     "type": "wordpress-plugin",
     "require": {

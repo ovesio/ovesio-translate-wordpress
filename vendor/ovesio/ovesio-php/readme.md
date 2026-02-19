@@ -1,6 +1,6 @@
 # Ovesio PHP SDK
 
-A lightweight, fluent PHP client for interacting with the [Ovesio API](https://api.ovesio.com/docs/) and [Ovesio AI platform](https://ovesio.com).
+A lightweight, fluent PHP client for interacting with the [Ovesio API](https://api.docs.ovesio.com/) and [Ovesio AI platform](https://ovesio.com).
 
 ## 🔐 Getting Started
 
@@ -182,8 +182,8 @@ All example files can be found in the `/examples` directory:
 
 ## 📚 Documentation
 
-- [Ovesio Official Docs](https://ovesio.com/docs/)
-- [API Reference](https://api.ovesio.com/docs/)
+- [Ovesio Official Docs](https://docs.ovesio.com/)
+- [API Reference](https://api.docs.ovesio.com/)
 
 ---
 
