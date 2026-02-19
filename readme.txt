@@ -48,7 +48,7 @@ Activate it in Plugins.
 After activation the plugin creates its own table in the database – nothing you need to do.
 
 == First-time setup ==
-(Settings <span aria-hidden="true" class="wp-exclude-emoji">→</span> Ovesio)
+**Important:** Before configuring the module, ensure you have installed and configure Polylang plugin. Also keep in mind that Ovesio translates content, but system files or the emails send to your customers must be translated manually or by using other language packs.
 
 === API tab ===
 – API URL – leave default unless Ovesio told you otherwise.
