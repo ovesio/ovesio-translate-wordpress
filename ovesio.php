@@ -54,6 +54,10 @@ add_action('admin_notices', function() {
 
 add_filter('plugin_action_links_' . plugin_basename(__FILE__), 'ovesio_plugin_action_links');
 function ovesio_plugin_action_links($links) {
+    if (!ovesio_has_polylang()) {
+        return $links;
+    }
+
     $settings_link = '<a href="' . admin_url('admin.php?page=ovesio') . '">' . __('Settings', 'ovesio') . '</a>';
     array_unshift($links, $settings_link);
 
@@ -116,6 +120,10 @@ function ovesio_create_table() {
 add_action('admin_menu', 'ovesio_admin_menu');
 function ovesio_admin_menu()
 {
+    if (!ovesio_has_polylang()) {
+        return;
+    }
+
     add_menu_page(
         __('Ovesio', 'ovesio'),
         __('Ovesio', 'ovesio'),
@@ -151,7 +159,7 @@ function ovesio_admin_menu()
 add_action('admin_init', 'ovesio_register_settings');
 function ovesio_register_settings()
 {
-    if (!function_exists('pll_languages_list')) {
+    if (!ovesio_has_polylang()) {
         // Deactivate the plugin
         deactivate_plugins(plugin_basename(__FILE__));
 
@@ -167,6 +175,10 @@ function ovesio_register_settings()
 
     register_setting('ovesio_api', 'ovesio_api_settings', 'ovesio_sanitize_api_options');
     register_setting('ovesio_settings', 'ovesio_options', 'ovesio_sanitize_options');
+}
+
+function ovesio_has_polylang() {
+    return function_exists('pll_languages_list');
 }
 
 // Register Assets
